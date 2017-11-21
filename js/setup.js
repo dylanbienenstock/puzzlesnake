@@ -24,7 +24,7 @@ function setup() {
 	window.snake.controls.zoomSpeed = 1.2;
 	window.snake.controls.panSpeed = 0.8;
 	window.snake.controls.noZoom = false;
-	window.snake.controls.noPan = true;
+	window.snake.controls.noPan = false;
 	window.snake.controls.staticMoving = true;
 	window.snake.controls.dynamicDampingFactor = 0.3;
 
@@ -51,14 +51,20 @@ function resize() {
 function render() {
 	window.requestAnimationFrame(render);
 
-	//window.snake.segments[4].rotation.x += 0.01;
-
 	window.snake.controls.update();
 	window.snake.renderer.render(window.snake.scene, window.snake.camera);
 }
 
 function mousemove(event) {
 
+}
+
+function rotateSnakeSegment(index, degrees) {
+	window.snake.segments[index].rotateOnAxis(window.snake.segments[index].jointAngle, degrees * Math.PI / 180);
+}
+
+function r(index) { // <-- Shorthand for use in developer console
+	rotateSnakeSegment(index, 90);
 }
 
 function createSnake() {
@@ -70,6 +76,7 @@ function createSnake() {
 	for (var i = 0; i < 24; i++) {
 		var segment = createSnakeSegment(color1, color2, alt);
 		segment.position.x = window.snake.hypotenuse;
+		segment.position.y = alt ? -window.snake.hypotenuse : window.snake.hypotenuse;
 
 		if (lastSegment != undefined) {
 			lastSegment.add(segment);
@@ -84,6 +91,8 @@ function createSnake() {
 		lastSegment = segment;
 	}
 }
+
+var lastGeometry;
 
 function createSnakeSegment(color1, color2, alt) {
 	var geometry = new THREE.Geometry();
@@ -108,16 +117,8 @@ function createSnakeSegment(color1, color2, alt) {
 		new THREE.Face3(1, 0, 4, null, alt ? color2 : color1)
 	];
 
-	var rotatedObject = new THREE.Object3D();
-
-	rotatedObject.matrix.makeRotationY(90 * Math.PI / 180);
-	geometry.applyMatrix(rotatedObject.matrix);
-
-	rotatedObject.matrix.makeRotationZ((alt ? 225 : 45) * Math.PI / 180);
-	geometry.applyMatrix(rotatedObject.matrix);
-
-	rotatedObject.matrix.makeTranslation(0, alt ? -window.snake.hypotenuse : 0, 0);
-	geometry.applyMatrix(rotatedObject.matrix);
+	geometry.applyMatrix(new THREE.Matrix4().makeRotationY(90 * Math.PI / 180));
+	geometry.applyMatrix(new THREE.Matrix4().makeRotationZ((alt ? 225 : 45) * Math.PI / 180));
 
 	geometry.computeFaceNormals();
 
@@ -133,5 +134,14 @@ function createSnakeSegment(color1, color2, alt) {
 	    })
 	];
 
-	return new THREE.SceneUtils.createMultiMaterialObject(geometry, materials);
+	var segment = new THREE.SceneUtils.createMultiMaterialObject(geometry, materials)
+	segment.jointAngle = geometry.faces[0].normal;
+
+	if (alt) {
+		segment.jointAngle = segment.jointAngle.clone().cross(new THREE.Vector3(0, 0, 1))
+	}
+
+	lastGeometry = geometry;
+
+	return segment;
 }
