@@ -36,7 +36,7 @@ function setup() {
 
 	window.snake.camera.add(light);
 
-	createSnake();
+	createSnake(0x222222, 0x00AA00);
 
 	render();
 }
@@ -67,9 +67,12 @@ function r(index) { // <-- Shorthand for use in developer console
 	rotateSnakeSegment(index, 90);
 }
 
-function createSnake() {
-	var color1 = new THREE.Color(0x222222);
-	var color2 = new THREE.Color(0x00AA00);
+function createSnake(color1, color2) {
+	window.snake.scene.remove(window.snake.segments[0]);
+	window.snake.segments.length = 0;
+
+	var color1 = new THREE.Color(color1);
+	var color2 = new THREE.Color(color2);
 	var alt = false;
 	var lastSegment;
 
