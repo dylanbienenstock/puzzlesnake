@@ -5,12 +5,13 @@ $(window).resize(resize);
 $(window).mousemove(mousemove);
 
 window.snake.segments = [];
+window.snake.hypotenuse = Math.sqrt(0.5 * 0.5 + 0.5 * 0.5);
 
 function setup() {
 	window.snake.scene = new THREE.Scene();
 	window.snake.scene.background = new THREE.Color(0x888888);
 
-	window.snake.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+	window.snake.camera = new THREE.PerspectiveCamera(90, window.innerWidth / window.innerHeight, 0.1, 1000);
 	window.snake.camera.position.z = 5;
 
 	window.snake.renderer = new THREE.WebGLRenderer()
@@ -50,6 +51,8 @@ function resize() {
 function render() {
 	window.requestAnimationFrame(render);
 
+	//window.snake.segments[4].rotation.x += 0.01;
+
 	window.snake.controls.update();
 	window.snake.renderer.render(window.snake.scene, window.snake.camera);
 }
@@ -62,24 +65,27 @@ function createSnake() {
 	var color1 = new THREE.Color(0x222222);
 	var color2 = new THREE.Color(0x00AA00);
 	var alt = false;
-	var hypotenuse = Math.sqrt(0.5 * 0.5 + 0.5 * 0.5);
+	var lastSegment;
 
-	for (var i = -11.5; i < 12; i++) {
-		var segment = createSnakeSegment(alt ? color1 : color2, alt ? color2 : color1);
-		segment.position.x = i * hypotenuse;
-		segment.position.y = alt ? 0 : hypotenuse;
+	for (var i = 0; i < 24; i++) {
+		var segment = createSnakeSegment(color1, color2, alt);
+		segment.position.x = window.snake.hypotenuse;
 
-		segment.rotateY(90 * Math.PI / 180);
-		segment.rotateX(alt ? -225 * Math.PI / 180 : -45 * Math.PI / 180);
+		if (lastSegment != undefined) {
+			lastSegment.add(segment);
+		} else {
+			segment.position.x -= 8;
+			window.snake.scene.add(segment);
+		}
 
-		window.snake.scene.add(segment);
 		window.snake.segments.push(segment);
 
 		alt = !alt;
+		lastSegment = segment;
 	}
 }
 
-function createSnakeSegment(color1, color2) {
+function createSnakeSegment(color1, color2, alt) {
 	var geometry = new THREE.Geometry();
 
 	geometry.vertices = [
@@ -92,15 +98,26 @@ function createSnakeSegment(color1, color2) {
 	];
 
 	geometry.faces = [
-		new THREE.Face3(0, 1, 2, null, color1),
-		new THREE.Face3(3, 2, 1, null, color1),
-		new THREE.Face3(4, 0, 5, null, color1),
-		new THREE.Face3(5, 0, 2, null, color1),
-		new THREE.Face3(3, 1, 4, null, color2),
-		new THREE.Face3(3, 4, 5, null, color2),
-		new THREE.Face3(2, 3, 5, null, color1),
-		new THREE.Face3(1, 0, 4, null, color1)
+		new THREE.Face3(0, 1, 2, null, alt ? color2 : color1),
+		new THREE.Face3(3, 2, 1, null, alt ? color2 : color1),
+		new THREE.Face3(4, 0, 5, null, alt ? color2 : color1),
+		new THREE.Face3(5, 0, 2, null, alt ? color2 : color1),
+		new THREE.Face3(3, 1, 4, null, alt ? color1 : color2),
+		new THREE.Face3(3, 4, 5, null, alt ? color1 : color2),
+		new THREE.Face3(2, 3, 5, null, alt ? color2 : color1),
+		new THREE.Face3(1, 0, 4, null, alt ? color2 : color1)
 	];
+
+	var rotatedObject = new THREE.Object3D();
+
+	rotatedObject.matrix.makeRotationY(90 * Math.PI / 180);
+	geometry.applyMatrix(rotatedObject.matrix);
+
+	rotatedObject.matrix.makeRotationZ((alt ? 225 : 45) * Math.PI / 180);
+	geometry.applyMatrix(rotatedObject.matrix);
+
+	rotatedObject.matrix.makeTranslation(0, alt ? -window.snake.hypotenuse : 0, 0);
+	geometry.applyMatrix(rotatedObject.matrix);
 
 	geometry.computeFaceNormals();
 
@@ -111,7 +128,7 @@ function createSnakeSegment(color1, color2) {
 	    }),
 
 	    new THREE.MeshBasicMaterial({
-	    	color: 0xFFFFFF,
+	    	color: 0x000000,
 	    	wireframe: true
 	    })
 	];
