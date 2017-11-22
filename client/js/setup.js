@@ -9,7 +9,15 @@ window.snake.hypotenuse = Math.sqrt(0.5 * 0.5 + 0.5 * 0.5);
 
 function setup() {
 	window.snake.scene = new THREE.Scene();
-	window.snake.scene.background = new THREE.Color(0x888888);
+	//window.snake.scene.background = new THREE.Color(0x888888);
+	window.snake.scene.background = new THREE.CubeTextureLoader()
+		.setPath( "img/envmap/sahara_" )
+		.load([ "ft.png",
+				"bk.png",
+				"up.png", //
+				"dn.png", // 
+				"rt.png",
+				"lf.png" ]);
 
 	window.snake.camera = new THREE.PerspectiveCamera(90, window.innerWidth / window.innerHeight, 0.1, 1000);
 	window.snake.camera.position.z = 5;
@@ -127,6 +135,8 @@ function createSnakeSegment(color1, color2, alt) {
 
 	var materials = [
 		new THREE.MeshLambertMaterial({ 
+			envMap: window.snake.scene.background,
+			reflectivity: 0.3,
 			flatShading: true,
 	    	vertexColors: THREE.VertexColors
 	    }),
