@@ -4,15 +4,21 @@ $(setup);
 $(window).resize(resize);
 $(window).mousemove(mousemove);
 
+var segmentCount = 24;
+
 window.snake.segments = [];
 window.snake.wireframeSegments = [];
-window.snake.ghostSegments = [ [], [], [], [] ];
+
 window.snake.hypotenuse = Math.sqrt(0.5 * 0.5 + 0.5 * 0.5);
 window.snake.mouse = new THREE.Vector2();
-window.snake.intersected = null;
+window.snake.lastClientX = 0;
+window.snake.lastClientY = 0;
+window.snake.hoveringSegment = null;
+window.snake.rotatingSegment = null;
 
 function setup() {
-$("body").on("mousedown", "*", mousedown);
+	$("body").on("mousedown", "*", mousedown);
+	$("body").on("mouseup", "*", mouseup);
 
 	window.snake.scene = new THREE.Scene();
 	window.snake.scene.background = new THREE.CubeTextureLoader()
@@ -30,7 +36,7 @@ $("body").on("mousedown", "*", mousedown);
 	window.snake.camera.position.z = 5;
 
 	window.snake.renderer = new THREE.WebGLRenderer()
-	window.snake.renderer.setPixelRatio( window.devicePixelRatio);
+	window.snake.renderer.setPixelRatio(window.devicePixelRatio);
 	window.snake.renderer.setSize(window.innerWidth, window.innerHeight);
 
 	document.body.appendChild(window.snake.renderer.domElement);
@@ -41,7 +47,7 @@ $("body").on("mousedown", "*", mousedown);
 	window.snake.controls.panSpeed = 0.8;
 	window.snake.controls.noZoom = false;
 	window.snake.controls.noPan = false;
-	window.snake.controls.staticMoving = true;
+	window.snake.controls.staticMoving = false;
 	window.snake.controls.dynamicDampingFactor = 0.3;
 
 	window.snake.scene.add(window.snake.camera);
@@ -72,50 +78,104 @@ function render() {
 	window.snake.controls.update();
 
 	raycast();
+	correctSegmentAngles();
 
 	window.snake.renderer.render(window.snake.scene, window.snake.camera);
 }
 
 function raycast() {
+	if (window.snake.rotatingSegment != undefined) return;
+
 	window.snake.raycaster.setFromCamera(window.snake.mouse, window.snake.camera);
 
 	var intersects = window.snake.raycaster.intersectObjects(window.snake.segments, true);
 	var childIndex = 2;
 
 	if (intersects.length > 0) {
-		if (window.snake.intersected != intersects[0].object) {
-			if (window.snake.intersected) {
-				window.snake.intersected.material.emissive.setHex(window.snake.intersected.currentHex);
+		if (window.snake.hoveringSegment != intersects[0].object) {
+			if (window.snake.hoveringSegment) {
+				window.snake.hoveringSegment.material.emissive.setHex(window.snake.hoveringSegment.currentHex);
 			}
 
-			window.snake.intersected = intersects[0].object;
-			window.snake.intersected.currentHex = window.snake.intersected.material.emissive.getHex();
-			window.snake.intersected.material.emissive.setHex(0x888888);
+			window.snake.hoveringSegment = intersects[0].object;
+			window.snake.hoveringSegment.currentHex = window.snake.hoveringSegment.material.emissive.getHex();
+			window.snake.hoveringSegment.material.emissive.setHex(0x888888);
+
+			document.body.style.cursor = "pointer";
 		}
 	} else {
-		if (window.snake.intersected != undefined) {
-			window.snake.intersected.material.emissive.setHex(window.snake.intersected.currentHex);
+		if (window.snake.hoveringSegment != undefined) {
+			window.snake.hoveringSegment.material.emissive.setHex(window.snake.hoveringSegment.currentHex);
 		}
 
-		window.snake.intersected = null;
+		window.snake.hoveringSegment = null;
 	}
+}
+
+function shortAngleDistance(a0, a1) {
+    var max = Math.PI * 2;
+    var da = (a1 - a0) % max;
+    return 2 * da % max - da;
+}
+
+function correctSegmentAngles() {
+	window.snake.segments.forEach(function(segment) {
+		if (window.snake.rotatingSegment != undefined && segment.index == window.snake.rotatingSegment.index) return;
+
+		if (segment.jointRotation % 90 != 0) {
+			var snapAngle = segment.jointRotation;
+
+			snapAngle = Math.round(segment.jointRotation / 90);
+			snapAngle *= 90;
+
+			rotateSnakeSegment(segment.index, snapAngle - segment.jointRotation);
+		}
+	});
 }
 
 function mousemove(event) {
-	event.preventDefault();
-
 	window.snake.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
 	window.snake.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+	document.body.style.cursor = "initial";
+
+	if (window.snake.hoveringSegment != undefined) {
+		document.body.style.cursor = "pointer";
+	}
+
+	if (window.snake.rotatingSegment != undefined) {
+		document.body.style.cursor = "move";
+
+		var difference = event.clientX - window.snake.lastClientX;
+
+		rotateSnakeSegment(window.snake.rotatingSegment.index, difference * 0.45);
+	}
+
+	window.snake.lastClientX = event.clientX;
+	window.snake.lastClientY = event.clientY;
 }
 
-function mousedown() {
-	if (window.snake.intersected != undefined) {
-		rotateSnakeSegment(window.snake.intersected.index, 90);
+function mousedown(event) {
+	if (window.snake.hoveringSegment != undefined) {
+		document.body.style.cursor = "move";
+
+		window.snake.rotatingSegment = window.snake.hoveringSegment;
+		window.snake.controls.enabled = false;
 	}
 }
 
+function mouseup(event) {
+	document.body.style.cursor = "initial";
+
+	window.snake.rotatingSegment = null;
+	window.snake.controls.enabled = true;
+}
+
 function rotateSnakeSegment(index, degrees) {
-	window.snake.segments[index].rotateOnAxis(window.snake.segments[index].jointAngle, degrees * Math.PI / 180);
+	window.snake.segments[index].rotateOnAxis(window.snake.segments[index].jointNormal, degrees * Math.PI / 180);
+
+	window.snake.segments[index].jointRotation += degrees;
+	window.snake.segments[index].jointRotation = window.snake.segments[index].jointRotation % 360;
 }
 
 function createSnake(color1, color2) {
@@ -127,7 +187,7 @@ function createSnake(color1, color2) {
 	var alt = false;
 	var lastSegment;
 
-	for (var i = 0; i < 24; i++) {
+	for (var i = 0; i < segmentCount; i++) {
 		var segment = createSnakeSegment(color1, color2, alt);
 		segment.index = i;
 		segment.position.x = window.snake.hypotenuse;
@@ -146,8 +206,6 @@ function createSnake(color1, color2) {
 		lastSegment = segment;
 	}
 }
-
-var lastGeometry;
 
 function createSnakeSegment(color1, color2, alt) {
 	var geometry = new THREE.Geometry();
@@ -186,13 +244,12 @@ function createSnakeSegment(color1, color2, alt) {
     });
 
 	var segment = new THREE.Mesh(geometry, material);
-	segment.jointAngle = geometry.faces[0].normal;
+	segment.jointNormal = geometry.faces[0].normal;
+	segment.jointRotation = 0;
 
 	if (alt) {
-		segment.jointAngle = segment.jointAngle.clone().cross(new THREE.Vector3(0, 0, 1))
+		segment.jointNormal = segment.jointNormal.clone().cross(new THREE.Vector3(0, 0, 1))
 	}
-
-	lastGeometry = geometry;
 
 	return segment;
 }
