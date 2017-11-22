@@ -175,6 +175,11 @@ function rotateSnakeSegment(index, degrees) {
 	window.snake.segments[index].rotateOnAxis(window.snake.segments[index].jointNormal, degrees * Math.PI / 180);
 
 	window.snake.segments[index].jointRotation += degrees;
+
+	if (window.snake.segments[index].jointRotation < 0) {
+		window.snake.segments[index].jointRotation += 360;
+	}
+
 	window.snake.segments[index].jointRotation = window.snake.segments[index].jointRotation % 360;
 }
 
@@ -252,4 +257,29 @@ function createSnakeSegment(color1, color2, alt) {
 	}
 
 	return segment;
+}
+
+function importCode(code) {
+	createSnake(0x222222, 0x00AA00);
+
+	for (var i = 0; i < Math.min(code.length, segmentCount); i++) {
+		rotateSnakeSegment(i, parseInt(code.charAt(i)) * 90);
+	}
+}
+
+function exportCode() {
+	var exportString = "";
+
+	window.snake.segments.forEach(function(segment) {
+		exportString += Math.round(segment.jointRotation / 90);
+	});
+
+	var temp = document.createElement("textarea");
+	document.body.appendChild(temp);
+	$(temp).val(exportString);
+	temp.select();
+	document.execCommand("copy");
+	document.body.removeChild(temp);
+
+	alert("Code copied to clipboard.");
 }
