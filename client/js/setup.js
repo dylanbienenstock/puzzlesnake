@@ -5,24 +5,32 @@ $(window).resize(resize);
 $(window).mousemove(mousemove);
 
 window.snake.segments = [];
+window.snake.wireframeSegments = [];
+window.snake.ghostSegments = [ [], [], [], [] ];
 window.snake.hypotenuse = Math.sqrt(0.5 * 0.5 + 0.5 * 0.5);
+window.snake.mouse = new THREE.Vector2();
+window.snake.intersected = null;
 
 function setup() {
+$("body").on("mousedown", "*", mousedown);
+
 	window.snake.scene = new THREE.Scene();
-	//window.snake.scene.background = new THREE.Color(0x888888);
 	window.snake.scene.background = new THREE.CubeTextureLoader()
-		.setPath( "img/envmap/sahara_" )
-		.load([ "ft.png",
-				"bk.png",
-				"up.png", //
-				"dn.png", // 
-				"rt.png",
-				"lf.png" ]);
+		.setPath("img/envmap/sahara_")
+		.load([
+			"ft.png",
+			"bk.png",
+			"up.png",
+			"dn.png",
+			"rt.png",
+			"lf.png"
+		]);
 
 	window.snake.camera = new THREE.PerspectiveCamera(90, window.innerWidth / window.innerHeight, 0.1, 1000);
 	window.snake.camera.position.z = 5;
 
 	window.snake.renderer = new THREE.WebGLRenderer()
+	window.snake.renderer.setPixelRatio( window.devicePixelRatio);
 	window.snake.renderer.setSize(window.innerWidth, window.innerHeight);
 
 	document.body.appendChild(window.snake.renderer.domElement);
@@ -44,6 +52,8 @@ function setup() {
 
 	window.snake.camera.add(light);
 
+	window.snake.raycaster = new THREE.Raycaster();
+
 	createSnake(0x222222, 0x00AA00);
 
 	render();
@@ -60,19 +70,52 @@ function render() {
 	window.requestAnimationFrame(render);
 
 	window.snake.controls.update();
+
+	raycast();
+
 	window.snake.renderer.render(window.snake.scene, window.snake.camera);
 }
 
-function mousemove(event) {
+function raycast() {
+	window.snake.raycaster.setFromCamera(window.snake.mouse, window.snake.camera);
 
+	var intersects = window.snake.raycaster.intersectObjects(window.snake.segments, true);
+	var childIndex = 2;
+
+	if (intersects.length > 0) {
+		if (window.snake.intersected != intersects[0].object) {
+			if (window.snake.intersected) {
+				window.snake.intersected.material.emissive.setHex(window.snake.intersected.currentHex);
+			}
+
+			window.snake.intersected = intersects[0].object;
+			window.snake.intersected.currentHex = window.snake.intersected.material.emissive.getHex();
+			window.snake.intersected.material.emissive.setHex(0x888888);
+		}
+	} else {
+		if (window.snake.intersected != undefined) {
+			window.snake.intersected.material.emissive.setHex(window.snake.intersected.currentHex);
+		}
+
+		window.snake.intersected = null;
+	}
+}
+
+function mousemove(event) {
+	event.preventDefault();
+
+	window.snake.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+	window.snake.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+}
+
+function mousedown() {
+	if (window.snake.intersected != undefined) {
+		rotateSnakeSegment(window.snake.intersected.index, 90);
+	}
 }
 
 function rotateSnakeSegment(index, degrees) {
 	window.snake.segments[index].rotateOnAxis(window.snake.segments[index].jointAngle, degrees * Math.PI / 180);
-}
-
-function r(index) { // <-- Shorthand for use in developer console
-	rotateSnakeSegment(index, 90);
 }
 
 function createSnake(color1, color2) {
@@ -86,6 +129,7 @@ function createSnake(color1, color2) {
 
 	for (var i = 0; i < 24; i++) {
 		var segment = createSnakeSegment(color1, color2, alt);
+		segment.index = i;
 		segment.position.x = window.snake.hypotenuse;
 		segment.position.y = alt ? -window.snake.hypotenuse : window.snake.hypotenuse;
 
@@ -133,21 +177,15 @@ function createSnakeSegment(color1, color2, alt) {
 
 	geometry.computeFaceNormals();
 
-	var materials = [
-		new THREE.MeshLambertMaterial({ 
-			envMap: window.snake.scene.background,
-			reflectivity: 0.3,
-			flatShading: true,
-	    	vertexColors: THREE.VertexColors
-	    }),
+	var material = new THREE.MeshLambertMaterial({ 
+		envMap: window.snake.scene.background,
+		reflectivity: 0.3,
+		emissive: 0x000000,
+		flatShading: true,
+    	vertexColors: THREE.VertexColors
+    });
 
-	    new THREE.MeshBasicMaterial({
-	    	color: 0x000000,
-	    	wireframe: true
-	    })
-	];
-
-	var segment = new THREE.SceneUtils.createMultiMaterialObject(geometry, materials)
+	var segment = new THREE.Mesh(geometry, material);
 	segment.jointAngle = geometry.faces[0].normal;
 
 	if (alt) {
