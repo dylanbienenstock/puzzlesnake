@@ -19,6 +19,7 @@
   "homepage": "https://github.com/dylanbienenstock/puzzlesnake#readme",
   "dependencies": {
     "express": "^4.16.2",
-    "http": "0.0.0"
+    "http": "0.0.0",
+    "localtunnel": "^1.8.3"
   }
 }
