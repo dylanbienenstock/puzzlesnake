@@ -5,9 +5,10 @@ $(window).resize(resize);
 $(window).mousemove(mousemove);
 
 var segmentCount = 24;
+var lastRotateTime = 0;
+var centerDelay = 300;
 
 window.snake.segments = [];
-window.snake.wireframeSegments = [];
 
 window.snake.hypotenuse = Math.sqrt(0.5 * 0.5 + 0.5 * 0.5);
 window.snake.mouse = new THREE.Vector2();
@@ -79,6 +80,10 @@ function render() {
 
 	raycast();
 	correctSegmentAngles();
+
+	if (Date.now() - lastRotateTime >= centerDelay && $("#checkbox-autocenter").is(":checked")) {
+		centerSnake();
+	}
 
 	window.snake.renderer.render(window.snake.scene, window.snake.camera);
 }
@@ -181,6 +186,8 @@ function rotateSnakeSegment(index, degrees) {
 	}
 
 	window.snake.segments[index].jointRotation = window.snake.segments[index].jointRotation % 360;
+
+	lastRotateTime = Date.now();
 }
 
 function createSnake(color1, color2) {
@@ -201,7 +208,6 @@ function createSnake(color1, color2) {
 		if (lastSegment != undefined) {
 			lastSegment.add(segment);
 		} else {
-			segment.position.x -= 8;
 			window.snake.scene.add(segment);
 		}
 
@@ -210,6 +216,8 @@ function createSnake(color1, color2) {
 		alt = !alt;
 		lastSegment = segment;
 	}
+
+	centerSnake(true);
 }
 
 function createSnakeSegment(color1, color2, alt) {
@@ -257,6 +265,17 @@ function createSnakeSegment(color1, color2, alt) {
 	}
 
 	return segment;
+}
+
+function centerSnake(snap) { // TO DO: Make this frame-rate independent
+	var center = (new THREE.Box3().setFromObject(window.snake.segments[0])).getCenter();
+
+	if (center.length() >= 0.2 && !snap) {
+		center.normalize();
+		center.multiply(new THREE.Vector3(0.2, 0.2, 0.2));
+	}
+	
+	window.snake.segments[0].position.sub(center);
 }
 
 function importCode(code) {

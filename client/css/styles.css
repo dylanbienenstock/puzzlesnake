@@ -75,3 +75,52 @@ canvas {
 .button:active {
 	top: 2px;
 }
+
+.checkbox {
+	-webkit-appearance: none;
+
+	display: inline-block;
+	width: 20px;
+	height: 20px;
+	margin: 0;
+	padding-left: 4px;
+
+	-webkit-border-radius: 4px;
+	-moz-border-radius: 4px;
+	border-radius: 4px;
+
+	-webkit-transition: background 150ms ease;
+	-moz-transition: background 150ms ease;
+	-ms-transition: background 150ms ease;
+	-o-transition: background 150ms ease;
+	transition: background 150ms ease;
+
+	background-color: rgba(255, 255, 255, 0.6);
+	font-size: 16px;
+
+	cursor: pointer;
+}
+
+.checkbox:hover {
+	background-color: rgba(255, 255, 255, 0.8);
+}
+
+.checkbox:after {
+	color: transparent;
+	content: "\2714";
+}
+
+.checkbox:checked:after {
+	color: black;
+	content: "\2714";
+}
+
+.checkbox-check {
+	position: relative;
+	top: 3px;
+}
+
+.checkbox-label {
+	vertical-align: bottom;
+	margin-left: 4px;
+}
